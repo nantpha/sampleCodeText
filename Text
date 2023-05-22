@@ -1,0 +1,439 @@
+TextRank algorithm
+
+
+
+import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.text.similarity.CosineDistance;
+import org.apache.commons.text.similarity.CosineSimilarity;
+import org.apache.commons.text.similarity.JaccardSimilarity;
+import org.apache.commons.text.similarity.SimilarityScore;
+
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
+public class TextSummarizer {
+    public static void main(String[] args) {
+        String text = "Your input text goes here. This is a sample text that you want to summarize.";
+
+        // Split the text into sentences
+        String[] sentences = text.split("[.!?,;:]");
+
+        // Calculate sentence scores using the TextRank algorithm
+        Map<String, Double> sentenceScores = calculateSentenceScores(sentences);
+
+        // Generate the summary
+        String summary = generateSummary(sentences, sentenceScores, 3); // Specify the number of sentences in the summary
+
+        // Print the summary
+        System.out.println("Summary: " + summary);
+    }
+
+    public static Map<String, Double> calculateSentenceScores(String[] sentences) {
+        // Build the similarity graph between sentences
+        SimilarityGraph graph = buildSimilarityGraph(sentences);
+
+        // Run the TextRank algorithm to calculate sentence scores
+        Map<String, Double> sentenceScores = TextRankAlgorithm.runTextRank(graph);
+
+        return sentenceScores;
+    }
+
+    public static SimilarityGraph buildSimilarityGraph(String[] sentences) {
+        SimilarityGraph graph = new SimilarityGraph();
+
+        // Calculate similarity scores between sentences
+        SimilarityScore similarityScore = new CosineSimilarity();
+        for (int i = 0; i < sentences.length; i++) {
+            for (int j = i + 1; j < sentences.length; j++) {
+                double score = similarityScore.apply(sentences[i], sentences[j]);
+                graph.addEdge(i, j, score);
+            }
+        }
+
+        return graph;
+    }
+
+    public static String generateSummary(String[] sentences, Map<String, Double> sentenceScores, int numSentences) {
+        // Sort sentences by their scores in descending order
+        List<String> sortedSentences = new ArrayList<>(sentenceScores.keySet());
+        sortedSentences.sort((s1, s2) -> -Double.compare(sentenceScores.get(s1), sentenceScores.get(s2)));
+
+        // Select the top-ranked sentences for the summary
+        List<String> summarySentences = sortedSentences.subList(0, Math.min(numSentences, sortedSentences.size()));
+
+        // Concatenate and format the summary sentences
+        String summary = StringUtils.join(summarySentences, " ");
+
+        return summary;
+    }
+
+    static class SimilarityGraph {
+        private Map<Integer, Map<Integer, Double>> edges;
+
+        public SimilarityGraph() {
+            edges = new HashMap<>();
+        }
+
+        public void addEdge(int source, int target, double weight) {
+            edges.computeIfAbsent(source, k -> new HashMap<>()).put(target, weight);
+            edges.computeIfAbsent(target, k -> new HashMap<>()).put(source, weight);
+        }
+
+        public double getEdgeWeight(int source, int target) {
+            if (edges.containsKey(source) && edges.get(source).containsKey(target)) {
+                return edges.get(source).get(target);
+            }
+            return 0.0;
+        }
+    }
+
+    static class TextRankAlgorithm {
+        private static final double DAMPING_FACTOR = 0.85;
+        private static final double EPSILON = 1e-5;
+        private static final int MAX_ITERATIONS = 100;
+
+        public static Map<String, Double> runTextRank(SimilarityGraph graph) {
+            int numSentences = graph.edges.size();
+            double[] scores = new double[numSentences];
+            double[] prevScores = new double[numSentences];
+
+            // Initialize scores
+            double initialScore = 1.0 / numSentences;
+            for (int i = 0; i < numSentences; i++) {
+                scores[i] = initialScore;
+                prevScores[i] = initialScore;
+            }
+
+            // Iteratively update scores until convergence
+            int iteration = 0;
+            while (iteration < MAX_ITERATIONS) {
+                for (int i = 0; i < numSentences; i++) {
+                    double score = 0.0;
+                    for (int j = 0; j < numSentences; j++) {
+                        if (i != j) {
+                            double edgeWeight = graph.getEdgeWeight(i, j);
+                            int numEdges = graph.edges.get(j).size();
+                            score += DAMPING_FACTOR * edgeWeight * prevScores[j] / numEdges;
+                        }
+                    }
+                    score += (1 - DAMPING_FACTOR) / numSentences;
+                    scores[i] = score;
+                }
+
+                if (converged(scores, prevScores)) {
+                    break;
+                }
+
+                System.arraycopy(scores, 0, prevScores, 0, numSentences);
+                iteration++;
+            }
+
+            // Normalize scores
+            double sum = 0.0;
+            for (double score : scores) {
+                sum += score;
+            }
+            if (sum > 0) {
+                for (int i = 0; i < numSentences; i++) {
+                    scores[i] /= sum;
+                }
+            }
+
+            // Create sentence score map
+            Map<String, Double> sentenceScores = new HashMap<>();
+            for (int i = 0; i < numSentences; i++) {
+                sentenceScores.put(sentences[i], scores[i]);
+            }
+
+            return sentenceScores;
+        }
+
+        private static boolean converged(double[] scores, double[] prevScores) {
+            for (int i = 0; i < scores.length; i++) {
+                if (Math.abs(scores[i] - prevScores[i]) > EPSILON) {
+                    return false;
+                }
+            }
+            return true;
+        }
+    }
+}
+
+-------------------------------------------
+
+<dependency>
+    <groupId>org.jetbrains.kotlinx</groupId>
+    <artifactId>kotlinx-coroutines-core</artifactId>
+    <version>1.5.2</version>
+</dependency>
+<dependency>
+    <groupId>org.tensorflow</groupId>
+    <artifactId>tensorflow</artifactId>
+    <version>2.7.0</version>
+</dependency>
+<dependency>
+    <groupId>org.deeplearning4j</groupId>
+    <artifactId>deeplearning4j-modelimport</artifactId>
+    <version>1.0.0-beta7</version>
+</dependency>
+<dependency>
+    <groupId>ai.huggingface</groupId>
+    <artifactId>java-transformers</artifactId>
+    <version>4.10.0</version>
+</dependency>
+
+
+-----
+
+import ai.huggingface.transformers.ModelOutputs;
+import ai.huggingface.transformers.pipeline.SummarizationPipeline;
+import ai.huggingface.transformers.tokenization.T5Tokenizer;
+
+public class TextSummarizer {
+    public static void main(String[] args) {
+        String text = "Your input text goes here. This is a sample text that you want to summarize.";
+
+        // Load the T5 tokenizer and summarization model
+        T5Tokenizer tokenizer = T5Tokenizer.fromPretrained("t5-base");
+        SummarizationPipeline pipeline = SummarizationPipeline.fromPretrained("t5-base");
+
+        // Tokenize and summarize the text
+        ModelOutputs outputs = pipeline.tokenizer(text, tokenizer);
+        String summary = pipeline.summarize(outputs);
+
+        // Print the summary
+        System.out.println("Summary: " + summary);
+    }
+}
+
+
+------------------------
+Apache OpenNLP, Stanford CoreNLP
+import opennlp.tools.sentdetect.SentenceDetectorME;
+import opennlp.tools.sentdetect.SentenceModel;
+import opennlp.tools.util.Span;
+
+public class TextSummarizer {
+    public static void main(String[] args) {
+        String text = "Your input text goes here. This is a sample text that you want to summarize.";
+
+        // Sentence detection
+        String[] sentences = detectSentences(text);
+
+        // Extract summary
+        String summary = generateSummary(sentences);
+
+        // Print summary
+        System.out.println("Summary: " + summary);
+    }
+
+    public static String[] detectSentences(String text) {
+        try {
+            // Load sentence detection model
+            InputStream modelIn = new FileInputStream("en-sent.bin");
+            SentenceModel model = new SentenceModel(modelIn);
+            SentenceDetectorME sentenceDetector = new SentenceDetectorME(model);
+
+            // Detect sentences
+            return sentenceDetector.sentDetect(text);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
+        return new String[0];
+    }
+
+    public static String generateSummary(String[] sentences) {
+        // Combine all sentences to generate a summary
+        StringBuilder summary = new StringBuilder();
+        for (String sentence : sentences) {
+            summary.append(sentence).append(" ");
+        }
+
+        return summary.toString();
+    }
+}
+
+-----------------------------------------
+import java.io.FileInputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import opennlp.tools.sentdetect.SentenceDetectorME;
+import opennlp.tools.sentdetect.SentenceModel;
+import opennlp.tools.tokenize.SimpleTokenizer;
+import opennlp.tools.tokenize.TokenizerME;
+import opennlp.tools.tokenize.TokenizerModel;
+
+public class TextSummarizer {
+    public static void main(String[] args) {
+        String text = "Your input text goes here. This is a sample text that you want to summarize.";
+
+        // Split the text into sentences
+        String[] sentences = detectSentences(text);
+
+        // Tokenize the sentences
+        String[][] tokenizedSentences = tokenizeSentences(sentences);
+
+        // Generate the summary
+        String summary = generateSummary(tokenizedSentences, 3); // Specify the number of sentences in the summary
+
+        // Print the summary
+        System.out.println("Summary: " + summary);
+    }
+
+    public static String[] detectSentences(String text) {
+        try {
+            // Load sentence detection model
+            InputStream modelIn = new FileInputStream("en-sent.bin");
+            SentenceModel model = new SentenceModel(modelIn);
+            SentenceDetectorME sentenceDetector = new SentenceDetectorME(model);
+
+            // Detect sentences
+            return sentenceDetector.sentDetect(text);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
+        return new String[0];
+    }
+
+    public static String[][] tokenizeSentences(String[] sentences) {
+        try {
+            // Load tokenization model
+            InputStream modelIn = new FileInputStream("en-token.bin");
+            TokenizerModel model = new TokenizerModel(modelIn);
+            TokenizerME tokenizer = new TokenizerME(model);
+
+            // Tokenize sentences
+            String[][] tokenizedSentences = new String[sentences.length][];
+            for (int i = 0; i < sentences.length; i++) {
+                tokenizedSentences[i] = tokenizer.tokenize(sentences[i]);
+            }
+            return tokenizedSentences;
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
+        return new String[0][];
+    }
+
+    public static String generateSummary(String[][] tokenizedSentences, int numSentences) {
+        StringBuilder summary = new StringBuilder();
+
+        // Append the first 'numSentences' sentences to the summary
+        for (int i = 0; i < Math.min(numSentences, tokenizedSentences.length); i++) {
+            for (String token : tokenizedSentences[i]) {
+                summary.append(token).append(" ");
+            }
+        }
+
+        return summary.toString();
+    }
+}
+
+
+import opennlp.tools.sentdetect.SentenceDetectorME;
+import opennlp.tools.sentdetect.SentenceModel;
+import opennlp.tools.tokenize.TokenizerME;
+import opennlp.tools.tokenize.TokenizerModel;
+
+import java.io.FileInputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.util.Arrays;
+import java.util.Comparator;
+import java.util.stream.Collectors;
+
+public class TextSummarizer {
+    public static void main(String[] args) {
+        String text = "Your input text goes here. This is a sample text that you want to summarize.";
+
+        // Load sentence detection model
+        SentenceModel sentenceModel = loadSentenceModel();
+
+        // Detect sentences
+        String[] sentences = detectSentences(text, sentenceModel);
+
+        // Load tokenization model
+        TokenizerModel tokenizerModel = loadTokenizerModel();
+
+        // Tokenize sentences
+        String[][] tokenizedSentences = tokenizeSentences(sentences, tokenizerModel);
+
+        // Calculate sentence scores
+        double[] scores = calculateSentenceScores(tokenizedSentences);
+
+        // Sort sentences based on scores
+        String[] sortedSentences = sortSentences(sentences, scores);
+
+        // Generate summary from top-ranked sentences
+        String summary = generateSummary(sortedSentences, 3); // Specify the number of sentences in the summary
+
+        // Print the summary
+        System.out.println("Summary: " + summary);
+    }
+
+    public static SentenceModel loadSentenceModel() {
+        try (InputStream inputStream = new FileInputStream("en-sent.bin")) {
+            return new SentenceModel(inputStream);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        return null;
+    }
+
+    public static String[] detectSentences(String text, SentenceModel sentenceModel) {
+        SentenceDetectorME sentenceDetector = new SentenceDetectorME(sentenceModel);
+        return sentenceDetector.sentDetect(text);
+    }
+
+    public static TokenizerModel loadTokenizerModel() {
+        try (InputStream inputStream = new FileInputStream("en-token.bin")) {
+            return new TokenizerModel(inputStream);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        return null;
+    }
+
+    public static String[][] tokenizeSentences(String[] sentences, TokenizerModel tokenizerModel) {
+        TokenizerME tokenizer = new TokenizerME(tokenizerModel);
+        return Arrays.stream(sentences)
+                .map(tokenizer::tokenize)
+                .toArray(String[][]::new);
+    }
+
+    public static double[] calculateSentenceScores(String[][] tokenizedSentences) {
+        // Calculate scores based on your chosen algorithm or criteria
+        double[] scores = new double[tokenizedSentences.length];
+        // Example: Assign equal scores to all sentences
+        Arrays.fill(scores, 1.0);
+        return scores;
+    }
+
+    public static String[] sortSentences(String[] sentences, double[] scores) {
+        // Sort sentences based on scores
+        return Arrays.stream(sentences)
+                .sorted(Comparator.comparingDouble((String sentence) -> scores[indexOfSentence(sentences, sentence)]).reversed())
+                .toArray(String[]::new);
+    }
+
+    public static int indexOfSentence(String[] sentences, String sentence) {
+        for (int i = 0; i < sentences.length; i++) {
+            if (sentences[i].equals(sentence)) {
+                return i;
+            }
+        }
+        return -1;
+    }
+
+    public static String generateSummary(String[] sortedSentences, int numSentences) {
+        // Generate summary from top-ranked sentences
+        return Arrays.stream(sortedSentences)
+                .limit(numSentences)
+                .collect(Collectors.joining(" "));
+    }
+}
+
