@@ -1,5 +1,23 @@
 
+When creating files on a mounted NAS (Network Attached Storage), several factors can contribute to slow file creation times:
 
+1. **Network Latency**: If there is high latency between your application and the NAS device, it can result in slower file creation times. Ensure that your network connection to the NAS is stable and has low latency.
+
+2. **NAS Performance**: The performance of the NAS device itself can impact file creation times. If the NAS is under heavy load or has limited resources, it may struggle to handle file creation requests quickly. Consider upgrading the NAS hardware or optimizing its configuration if possible.
+
+3. **File System Type**: The file system type used by the NAS can also affect performance. Some file systems may be better optimized for certain types of operations, such as file creation. Consider experimenting with different file system types to see if performance improves.
+
+4. **Network Bandwidth**: Limited network bandwidth can slow down file creation times, especially if multiple clients are accessing the NAS simultaneously. Ensure that your network infrastructure has sufficient bandwidth to accommodate the workload.
+
+5. **File Size and Number of Files**: Creating large files or a large number of files can take longer, especially if the NAS has to allocate space for them or update metadata. Consider optimizing your application to create files in batches or using asynchronous operations to improve performance.
+
+6. **Permissions and Security**: If there are restrictive permissions or security settings on the NAS, it may impact file creation times, especially if additional checks need to be performed before creating a file. Review the permissions and security settings on the NAS to ensure they are not overly restrictive.
+
+7. **NAS Configuration**: Check the configuration settings of the NAS, such as caching policies, RAID configuration, and disk utilization. Adjusting these settings may improve file creation performance.
+
+8. **Network Protocol**: The protocol used to access the NAS (e.g., NFS, SMB) can impact performance. Experiment with different protocols to see if one performs better than others for your use case.
+
+By identifying and addressing the factors contributing to slow file creation times on your mounted NAS, you can improve the overall performance of your system.
 When dealing with issues related to gRPC channels unable to handle requests, there are several strategies you can consider to improve performance:
 
 1. **Increase Channel Pooling**: Ensure that your application is utilizing channel pooling effectively. Reusing channels instead of creating new ones for each request can significantly improve performance by reducing overhead.
