@@ -1,4 +1,20 @@
+To troubleshoot issues with calling multiple REST APIs, consider these steps:
 
+1. **Rate Limiting**: Verify if the APIs have rate limiting policies. Exceeding the rate limits could lead to throttling or blocking of requests.
+
+2. **Concurrency**: Check if your application is making too many concurrent requests. Limit the number of simultaneous requests to avoid overwhelming the server.
+
+3. **Connection Pooling**: Implement connection pooling to reuse TCP connections instead of creating new ones for each API request. This can reduce overhead and improve performance.
+
+4. **Error Handling**: Ensure that your application handles errors gracefully. Retry failed requests with exponential backoff to mitigate transient issues.
+
+5. **Throttling**: If the server imposes throttling, adjust the request rate accordingly to stay within the allowed limits.
+
+6. **Request Optimization**: Optimize your API requests by minimizing payload size, reducing unnecessary headers, and avoiding redundant requests.
+
+7. **Monitoring**: Monitor API usage and performance metrics to identify bottlenecks and optimize accordingly.
+
+By addressing these aspects, you can improve the reliability and performance of your application when making multiple REST API calls.
 
 For improving performance in gRPC-based applications, consider these optimizations:
 
